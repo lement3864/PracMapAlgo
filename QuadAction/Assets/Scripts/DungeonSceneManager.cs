@@ -5,52 +5,37 @@ using UnityEngine.SceneManagement;
 
 public class DungeonSceneManager : MonoBehaviour
 {
+    public static DungeonSceneManager Instance { get; private set; }
+
     private string[] Themes = { "Dungeon_Forrest"/*, "Dungeon_Sea", "Dungeon_Desert"*/ };
     private HashSet<GameObject> playersInPortal = new HashSet<GameObject>();
 
     // 던전 배열 생성 변수들
-    public enum RoomType { Entrance, Trap, Benefit, Boss, Monster }
+    public enum RoomType { Entrance, Trap, Benefit, Shop, Boss, Monster }
     public int width = 4;
     public int height = 4;
 
-    private RoomType[,] dungeonMap;
+    public RoomType[,] dungeonMap;
+    public Vector3 entrancePosition;
 
-    private void OnTriggerEnter(Collider other)
+    void Awake()
     {
-        if (other.gameObject.CompareTag("Player"))
+        if (Instance == null)
         {
-            playersInPortal.Add(other.gameObject);
-
-            CheckAllPlayersInPortal();
+            Instance = this;
+            DontDestroyOnLoad(gameObject); // 씬 전환 시 파괴되지 않도록 설정
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject); // 중복 인스턴스 제거
         }
     }
 
-    private void OnTriggerExit(Collider other)
-    {
-        if (other.gameObject.CompareTag("Player"))
-        {
-            playersInPortal.Remove(other.gameObject);
-        }
-    }
-
-    private void CheckAllPlayersInPortal()
-    {
-        int totalPlayers = 1;
-
-        if (playersInPortal.Count == totalPlayers)
-        {
-            EnterDungeon();
-        }
-    }
 
     public void EnterDungeon()
     {
         int index = Random.Range(0, Themes.Length);
         string selectedTheme = Themes[index];
-
-        // 씬 전환시 지정 위치로 소환함
-        Vector3 entrancePosition = new Vector3(0, 0.7f, 0);
-        GlobalPlayerPosition.nextSpawnPoint = entrancePosition;
 
         // 던전 배열 생성
         GenerateDungeon();
@@ -78,7 +63,21 @@ public class DungeonSceneManager : MonoBehaviour
         PlaceSpecialRoom(RoomType.Entrance, specialRoomPositions);
         PlaceSpecialRoom(RoomType.Trap, specialRoomPositions);
         PlaceSpecialRoom(RoomType.Benefit, specialRoomPositions);
+        PlaceSpecialRoom(RoomType.Shop, specialRoomPositions);
         PlaceSpecialRoom(RoomType.Boss, specialRoomPositions);
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (dungeonMap[x, y] == RoomType.Entrance)
+                {
+                    // Entrance 위치 계산, 방의 실제 월드 위치를 entrancePosition에 저장
+                    entrancePosition = new Vector3(x * 500, 0, y * 500); // 간격을 500으로 설정했다고 가정
+                    break;
+                }
+            }
+        }
 
         // 방 출력 및 검사 (디버깅)
         for (int y = 0; y < height; y++)
